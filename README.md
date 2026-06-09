@@ -69,6 +69,30 @@ python scripts/check_environment.py --config configs/baseline_caa.json --out run
 
 如果 `cuda_available=false`，正式 Qwen baseline 不应继续运行。
 
+## AutoDL 初始化
+
+在 AutoDL 实例中进入项目目录后，可执行：
+
+```bash
+bash scripts/run_autodl_setup.sh
+```
+
+默认行为：
+
+- 使用 `/etc/network_turbo` 开启 AutoDL 学术加速。
+- 设置 Hugging Face 缓存到 `/root/autodl-tmp/cache/huggingface`。
+- 设置 pip 阿里云镜像。
+- 安装 `git-lfs`。
+- 创建并激活 `ccks` conda 环境。
+- 安装 CUDA 12.8 版 PyTorch。
+- 安装项目依赖并运行环境检查。
+
+如需修改环境名或 PyTorch CUDA wheel，可覆盖环境变量：
+
+```bash
+ENV_NAME=ccks PYTHON_VERSION=3.11 TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 bash scripts/run_autodl_setup.sh
+```
+
 ## 训练 Steering 向量
 
 ```powershell
@@ -119,6 +143,22 @@ python scripts/local_eval.py --gold valid.json --pred runs/baseline_caa/predicti
 ```
 
 注意：本地代理分数只用于调试，不等价于天池官方 LLM judge 分数。
+
+## 结果对比
+
+对比 no-steering 与 CAA 预测：
+
+```powershell
+python scripts/compare_predictions.py --gold valid.json --baseline runs/no_steering/predictions.json --candidate runs/baseline_caa/predictions.json --out runs/compare_no_steering_vs_caa.json
+```
+
+## 层数和强度搜索
+
+在已训练好 CAA 向量后，可自动扫 `layer/strength`：
+
+```powershell
+python scripts/sweep_generate.py --config configs/baseline_caa.json --layers 16,20,24,28,32 --strengths 0.5,1.0,1.5,2.0 --out-dir runs/sweeps/baseline_caa
+```
 
 ## 生成提交文件
 

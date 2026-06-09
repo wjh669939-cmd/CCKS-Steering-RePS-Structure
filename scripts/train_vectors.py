@@ -18,7 +18,16 @@ from ccks_steering.modeling import torch_dtype_from_config, validate_runtime
 
 
 @torch.inference_mode()
-def answer_activation(model, tokenizer, question: str, answer: str, *, layer: int, max_length: int, pooling: str):
+def answer_activations(
+    model,
+    tokenizer,
+    question: str,
+    answer: str,
+    *,
+    layers: list[int],
+    max_length: int,
+    pooling: str,
+) -> dict[int, torch.Tensor]:
     prompt_text = format_generation_prompt(tokenizer, question)
     full_text = format_answer_chat(tokenizer, question, answer)
     prompt_ids = tokenizer(prompt_text, add_special_tokens=False)["input_ids"]
@@ -26,20 +35,28 @@ def answer_activation(model, tokenizer, question: str, answer: str, *, layer: in
     encoded = {key: value.to(model.device) for key, value in encoded.items()}
 
     outputs = model(**encoded, output_hidden_states=True, use_cache=False)
-    hidden = outputs.hidden_states[layer + 1][0]
-    seq_len = hidden.shape[0]
-    start = min(max(len(prompt_ids), 0), max(seq_len - 1, 0))
-    answer_hidden = hidden[start:]
-    if answer_hidden.numel() == 0:
-        answer_hidden = hidden[-1:]
+    activations = {}
+    for layer in layers:
+        hidden_index = layer + 1
+        if hidden_index >= len(outputs.hidden_states):
+            raise ValueError(f"Layer {layer} out of range; model returned {len(outputs.hidden_states) - 1} layers")
+        hidden = outputs.hidden_states[hidden_index][0]
+        seq_len = hidden.shape[0]
+        start = min(max(len(prompt_ids), 0), max(seq_len - 1, 0))
+        answer_hidden = hidden[start:]
+        if answer_hidden.numel() == 0:
+            answer_hidden = hidden[-1:]
 
-    if pooling == "answer_last":
-        return answer_hidden[-1].detach().float().cpu()
-    if pooling == "answer_mean":
-        return answer_hidden.mean(dim=0).detach().float().cpu()
-    if pooling == "sequence_mean":
-        return hidden.mean(dim=0).detach().float().cpu()
-    raise ValueError(f"Unsupported pooling: {pooling}")
+        if pooling == "answer_last":
+            pooled = answer_hidden[-1]
+        elif pooling == "answer_mean":
+            pooled = answer_hidden.mean(dim=0)
+        elif pooling == "sequence_mean":
+            pooled = hidden.mean(dim=0)
+        else:
+            raise ValueError(f"Unsupported pooling: {pooling}")
+        activations[layer] = pooled.detach().float().cpu()
+    return activations
 
 
 def main() -> None:
@@ -79,35 +96,42 @@ def main() -> None:
     pooling = config.get("pooling", "answer_mean")
     normalize = bool(config.get("normalize_vectors", True))
 
-    for layer in config["layers"]:
-        layer_vectors = {}
-        for key, items in tqdm(sorted(groups.items(), key=lambda item: item[0].slug), desc=f"layer {layer}"):
-            diffs = []
-            for item in items:
-                pos = answer_activation(
-                    model,
-                    tokenizer,
-                    item["question"],
-                    item["matching"],
-                    layer=layer,
-                    max_length=max_length,
-                    pooling=pooling,
-                )
-                neg = answer_activation(
-                    model,
-                    tokenizer,
-                    item["question"],
-                    item["not_matching"],
-                    layer=layer,
-                    max_length=max_length,
-                    pooling=pooling,
-                )
-                diffs.append(pos - neg)
-            vector = torch.stack(diffs).mean(dim=0)
+    layers = [int(layer) for layer in config["layers"]]
+    vectors_by_layer: dict[int, dict[str, torch.Tensor]] = {layer: {} for layer in layers}
+
+    for key, items in tqdm(sorted(groups.items(), key=lambda item: item[0].slug), desc="concepts"):
+        sums: dict[int, torch.Tensor | None] = {layer: None for layer in layers}
+        for item in tqdm(items, desc=key.concept_id, leave=False):
+            pos_acts = answer_activations(
+                model,
+                tokenizer,
+                item["question"],
+                item["matching"],
+                layers=layers,
+                max_length=max_length,
+                pooling=pooling,
+            )
+            neg_acts = answer_activations(
+                model,
+                tokenizer,
+                item["question"],
+                item["not_matching"],
+                layers=layers,
+                max_length=max_length,
+                pooling=pooling,
+            )
+            for layer in layers:
+                diff = pos_acts[layer] - neg_acts[layer]
+                sums[layer] = diff if sums[layer] is None else sums[layer] + diff
+
+        for layer in layers:
+            if sums[layer] is None:
+                raise ValueError(f"No training examples for concept_id={key.concept_id}")
+            vector = sums[layer] / len(items)
             norm = vector.norm().item()
             if normalize and norm > 0:
                 vector = vector / norm
-            layer_vectors[key.concept_id] = vector
+            vectors_by_layer[layer][key.concept_id] = vector
             metadata["vectors"].append(
                 {
                     "layer": layer,
@@ -118,6 +142,8 @@ def main() -> None:
                     "pre_normalization_norm": norm,
                 }
             )
+
+    for layer, layer_vectors in vectors_by_layer.items():
         torch.save(layer_vectors, vector_dir / f"layer_{layer}.pt")
 
     write_json(out_dir / "vector_metadata.json", metadata)
