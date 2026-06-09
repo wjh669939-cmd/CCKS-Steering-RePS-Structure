@@ -83,6 +83,17 @@ runs/baseline_caa/vectors/
 
 每个层会保存一个 `.pt` 文件，内部按 `concept_id` 存储向量。
 
+## 无 Steering 基线
+
+先跑无 steering 基线，用作后续 CAA 方法的对照组：
+
+```powershell
+python scripts/generate_no_steering.py --config configs/no_steering.json
+python scripts/local_eval.py --gold valid.json --pred runs/no_steering/predictions.json --out runs/no_steering/local_eval.json
+```
+
+该脚本只使用 `question` 生成答案，不会把 `concept` 放入 prompt。
+
 ## 生成验证集答案
 
 ```powershell
@@ -132,6 +143,13 @@ python scripts/train_vectors.py --config configs/smoke_tiny_gpt2.json --limit-pe
 python scripts/generate.py --config configs/smoke_tiny_gpt2.json --limit-per-concept 1
 python scripts/local_eval.py --gold valid.json --pred runs/smoke_tiny_gpt2/predictions.json --out runs/smoke_tiny_gpt2/local_eval.json --allow-partial
 python scripts/make_submission.py --pred runs/smoke_tiny_gpt2/predictions.json --out-dir runs/smoke_tiny_gpt2/submission
+```
+
+无 steering smoke test：
+
+```powershell
+python scripts/generate_no_steering.py --config configs/smoke_no_steering_tiny_gpt2.json --limit-per-concept 1
+python scripts/local_eval.py --gold valid.json --pred runs/smoke_no_steering_tiny_gpt2/predictions.json --out runs/smoke_no_steering_tiny_gpt2/local_eval.json --allow-partial
 ```
 
 Smoke test 只用于验证工程链路，不代表比赛效果。
