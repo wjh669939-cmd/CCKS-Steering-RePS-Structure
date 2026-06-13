@@ -15,6 +15,7 @@ fi
 export HF_HOME="${HF_HOME:-/root/autodl-tmp/cache/huggingface}"
 export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/transformers}"
 export CONDA_NO_PLUGINS="${CONDA_NO_PLUGINS:-true}"
+export CONDA_SOLVER="${CONDA_SOLVER:-classic}"
 mkdir -p "$HF_HOME" "$TRANSFORMERS_CACHE"
 
 pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
@@ -34,16 +35,23 @@ cd "$PROJECT_DIR"
 ENV_READY=0
 if command -v conda >/dev/null 2>&1; then
   set +e
-  eval "$(CONDA_NO_PLUGINS=true conda shell.bash hook)"
+  eval "$(CONDA_NO_PLUGINS=true CONDA_SOLVER=classic conda shell.bash hook)"
   CONDA_HOOK_STATUS=$?
-  set -e
   if [ "$CONDA_HOOK_STATUS" -eq 0 ]; then
-    if ! CONDA_NO_PLUGINS=true conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-      CONDA_NO_PLUGINS=true conda create -n "$ENV_NAME" "python=$PYTHON_VERSION" -y
+    CONDA_CREATE_STATUS=0
+    if ! CONDA_NO_PLUGINS=true CONDA_SOLVER=classic conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
+      CONDA_NO_PLUGINS=true CONDA_SOLVER=classic conda create -n "$ENV_NAME" "python=$PYTHON_VERSION" -y
+      CONDA_CREATE_STATUS=$?
     fi
-    conda activate "$ENV_NAME"
-    ENV_READY=1
+    if [ "$CONDA_CREATE_STATUS" -eq 0 ]; then
+      conda activate "$ENV_NAME"
+      CONDA_ACTIVATE_STATUS=$?
+      if [ "$CONDA_ACTIVATE_STATUS" -eq 0 ]; then
+        ENV_READY=1
+      fi
+    fi
   fi
+  set -e
 fi
 
 if [ "$ENV_READY" -eq 0 ]; then
