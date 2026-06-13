@@ -14,6 +14,7 @@ fi
 
 export HF_HOME="${HF_HOME:-/root/autodl-tmp/cache/huggingface}"
 export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/transformers}"
+export CONDA_NO_PLUGINS="${CONDA_NO_PLUGINS:-true}"
 mkdir -p "$HF_HOME" "$TRANSFORMERS_CACHE"
 
 pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
@@ -28,15 +29,31 @@ else
   fi
 fi
 
+cd "$PROJECT_DIR"
+
+ENV_READY=0
 if command -v conda >/dev/null 2>&1; then
-  eval "$(conda shell.bash hook)"
-  if ! conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-    conda create -n "$ENV_NAME" "python=$PYTHON_VERSION" -y
+  set +e
+  eval "$(CONDA_NO_PLUGINS=true conda shell.bash hook)"
+  CONDA_HOOK_STATUS=$?
+  set -e
+  if [ "$CONDA_HOOK_STATUS" -eq 0 ]; then
+    if ! CONDA_NO_PLUGINS=true conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
+      CONDA_NO_PLUGINS=true conda create -n "$ENV_NAME" "python=$PYTHON_VERSION" -y
+    fi
+    conda activate "$ENV_NAME"
+    ENV_READY=1
   fi
-  conda activate "$ENV_NAME"
 fi
 
-cd "$PROJECT_DIR"
+if [ "$ENV_READY" -eq 0 ]; then
+  echo "Conda is unavailable or failed; falling back to .venv-autodl"
+  PYTHON_BIN="$(command -v python3 || command -v python)"
+  "$PYTHON_BIN" -m venv .venv-autodl
+  # shellcheck disable=SC1091
+  source .venv-autodl/bin/activate
+fi
+
 python -m pip install --upgrade pip
 python -m pip install torch torchvision torchaudio --index-url "$TORCH_INDEX_URL"
 python -m pip install -r requirements.txt
