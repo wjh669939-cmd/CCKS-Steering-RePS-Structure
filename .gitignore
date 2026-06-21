@@ -1,4 +1,5 @@
 .venv/
+.venv-autodl/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -8,3 +9,14 @@ runs/
 models/
 *.pt
 *.safetensors
+*.log
+Conceptors.pdf
+
+# RePS runtime artifacts
+easyedit_reps/.venv/
+easyedit_reps/outputs/
+easyedit_reps/EasyEdit/outputs/
+
+# Local submission / experiment outputs (not for version control)
+绝地邮兵_result*.json
+第一版.json

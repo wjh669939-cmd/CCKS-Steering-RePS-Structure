@@ -1,0 +1,7 @@
+# 第二步：仅 valid 生成（需已训练好向量）
+defaults:
+  - steer_eval_reps_local
+
+generate_vector: false
+generate_response: true
+evaluate: false

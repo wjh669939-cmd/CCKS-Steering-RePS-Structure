@@ -1,0 +1,47 @@
+# CCKS2026 RePS 本地配置 — 路径均指向 easyedit_reps 目录
+# 用法见 scripts/run_reps_vectors.sh / run_reps_generate.sh
+
+model_name_or_path: /root/autodl-tmp/models/Qwen3-4B-Instruct-2507
+dtype: bfloat16
+device: cuda:0
+seed: 42
+use_chat_template: true
+system_prompt: ''
+
+method: reps
+dataset: SteerEval/personality
+exp: valid
+
+layers: [18]
+multipliers: [3]
+use_pca: false
+
+steer_train_hparam_paths:
+  - hparams/Steer/ccks2026_hparams/qwen3-4b-it/reps/generate_reps.yaml
+steer_train_dataset: steer_eval
+save_vectors: true
+steer_vector_output_dirs:
+  - /root/CCKS2026-Steering/easyedit_reps/outputs/vectors/ccks_baseline_reps
+
+apply_steer_hparam_paths:
+  - hparams/Steer/ccks2026_hparams/qwen3-4b-it/reps/apply_reps.yaml
+steer_vector_load_dir:
+  - /root/CCKS2026-Steering/easyedit_reps/outputs/vectors/ccks_baseline_reps
+
+generate_vector: true
+generate_response: false
+evaluate: false
+best_multip_path: 'None'
+continue_generation_results: true
+
+generation_data:
+  - steer_eval
+generation_data_size: null
+generation_output_dir: /root/CCKS2026-Steering/easyedit_reps/outputs/generation/ccks_baseline_reps/reps
+num_responses: 1
+steer_from_end_position: false
+generate_orig_output: false
+generation_params:
+  max_new_tokens: 256
+  temperature: 0
+  do_sample: false

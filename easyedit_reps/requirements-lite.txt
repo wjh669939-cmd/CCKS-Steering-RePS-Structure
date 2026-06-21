@@ -1,0 +1,13 @@
+# easyedit_reps 轻量依赖（torch/transformers 复用 ../.venv）
+hydra-core>=1.3.0
+omegaconf>=2.3.0
+datasets>=2.0.0
+pandas>=2.0.0
+einops>=0.8.0
+pillow>=10.0.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+nltk>=3.8.0
+openai>=1.0.0
+google-api-python-client>=2.0.0
+matplotlib>=3.8.0
