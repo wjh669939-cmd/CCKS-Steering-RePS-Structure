@@ -1,0 +1,23 @@
+{
+  "name": "reps_raw_v1",
+  "description": "RePS 分档扫参 + 512 token raw 生成，无后处理；天池官方分 0.3817（A 版）",
+  "frozen_at": "2026-06-22",
+  "official_score": 0.3817,
+  "model": "/root/autodl-tmp/models/Qwen3-4B-Instruct-2507",
+  "method": "reps",
+  "layer": 18,
+  "generation": {
+    "max_new_tokens": 512,
+    "temperature": 0,
+    "do_sample": false,
+    "system_prompt": "",
+    "use_chat_template": true,
+    "seed": 42
+  },
+  "postprocess": "none",
+  "multipliers_file": "multipliers.json",
+  "submission_file": "submission.json",
+  "raw_generation": "../easyedit_reps/outputs/generation/regen_512/all_generation_results_valid.json",
+  "vectors_dir": "../easyedit_reps/outputs/vectors/ccks_baseline_reps",
+  "regen_command": "cd easyedit_reps && source env.sh && .venv/bin/python scripts/regen_tuned_all.py --max-new-tokens 512 --tag 512"
+}

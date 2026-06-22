@@ -1,4 +1,5 @@
-# easyedit_reps 轻量依赖（torch/transformers 复用 ../.venv）
+# easyedit_reps 轻量依赖（torch 复用 miniconda，见 env.sh）
+accelerate>=0.34.0
 hydra-core>=1.3.0
 omegaconf>=2.3.0
 datasets>=2.0.0

@@ -42,6 +42,6 @@ num_responses: 1
 steer_from_end_position: false
 generate_orig_output: false
 generation_params:
-  max_new_tokens: 256
+  max_new_tokens: 512
   temperature: 0
   do_sample: false

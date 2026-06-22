@@ -102,6 +102,36 @@ L12_INPUT_REWRITES: dict[tuple[str, str], str] = {
 }
 
 
+def fix_incomplete_sentence(text: str, min_keep: int = 50) -> str:
+    """Trim generation artifacts cut off by max_new_tokens (official fluency)."""
+    text = (text or "").strip()
+    if not text:
+        return text
+    if text[-1] in '.!?"\'」』）]':
+        return text
+
+    last_end = -1
+    for m in re.finditer(r"[.!?](?:\s+|$)", text):
+        if m.start() >= min_keep - 1:
+            last_end = m.start()
+    if last_end >= 0:
+        return text[: last_end + 1].strip()
+
+    lines = text.split("\n")
+    kept: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if kept and (
+            stripped.endswith(("—", "-", ":", "**"))
+            or re.match(r"^\d+\.\s+\*\*[^*]*$", stripped)
+            or (len(stripped) < 12 and not stripped.endswith((".", "!", "?")))
+        ):
+            break
+        kept.append(line)
+    joined = "\n".join(kept).strip()
+    return joined if len(joined) >= min_keep else text
+
+
 def strip_disclaimers(text: str, concept_id: str = "") -> tuple[str, bool]:
     original = text.strip()
     out = original
@@ -170,9 +200,16 @@ def maybe_add_personality_hint(concept_id: str, text: str, force: bool = False) 
     return text
 
 
-def clean_l12_answer(concept_id: str, text: str, question: str = "") -> str:
+def clean_l12_answer(concept_id: str, text: str, question: str = "", mode: str = "full") -> str:
     if not (concept_id.startswith("L1_") or concept_id.startswith("L2_")):
-        return text
+        return fix_incomplete_sentence(text)
+    if mode == "minimal":
+        return fix_incomplete_sentence(text)
+    if mode == "official":
+        cleaned, _ = strip_disclaimers(text, concept_id=concept_id)
+        if len(cleaned) < 30:
+            cleaned = text.strip()
+        return fix_incomplete_sentence(cleaned)
     for (cid, needle), rewrite in L12_INPUT_REWRITES.items():
         if cid == concept_id and needle.lower() in question.lower():
             if re.search(
@@ -180,12 +217,12 @@ def clean_l12_answer(concept_id: str, text: str, question: str = "") -> str:
                 text,
                 re.I,
             ):
-                return rewrite
+                return fix_incomplete_sentence(rewrite)
     cleaned, modified = strip_disclaimers(text, concept_id=concept_id)
     if len(cleaned) < 30:
         cleaned = text.strip()
         modified = False
-    return maybe_add_personality_hint(concept_id, cleaned, force=modified)
+    return fix_incomplete_sentence(maybe_add_personality_hint(concept_id, cleaned, force=modified))
 
 
 def insert_once(text: str, phrase: str, anchor: str | None = None) -> str:
@@ -279,32 +316,39 @@ def apply_l3_constraints(concept_id: str, text: str, had_disclaimer: bool = Fals
     return text
 
 
-def clean_l3_answer(concept_id: str, text: str) -> str:
+def clean_l3_answer(concept_id: str, text: str, mode: str = "full") -> str:
+    if mode == "minimal":
+        return fix_incomplete_sentence(text)
     cleaned, had_disclaimer = strip_disclaimers(text, concept_id=concept_id)
     if len(cleaned) < 30:
         cleaned = text.strip()
         had_disclaimer = False
-    return apply_l3_constraints(concept_id, cleaned, had_disclaimer)
+    if mode == "official":
+        cleaned = apply_l3_constraints(concept_id, cleaned, had_disclaimer)
+        return fix_incomplete_sentence(cleaned)
+    return fix_incomplete_sentence(apply_l3_constraints(concept_id, cleaned, had_disclaimer))
 
 
-def sync_item(concept_id: str, item: dict) -> dict:
+def sync_item(concept_id: str, item: dict, mode: str = "full") -> dict:
     pred = item.get("pred") or [""]
     answer = pred[0] if pred else ""
-    if concept_id.startswith("L3_"):
-        answer = clean_l3_answer(concept_id, answer)
+    if mode == "minimal":
+        answer = fix_incomplete_sentence(answer)
+    elif concept_id.startswith("L3_"):
+        answer = clean_l3_answer(concept_id, answer, mode=mode)
     else:
-        answer = clean_l12_answer(concept_id, answer, question=item.get("input", ""))
+        answer = clean_l12_answer(concept_id, answer, question=item.get("input", ""), mode=mode)
     item = dict(item)
     item["pred"] = [answer]
     item["complete_output"] = [answer]
     return item
 
 
-def postprocess_submission(data: list[dict]) -> list[dict]:
+def postprocess_submission(data: list[dict], mode: str = "full") -> list[dict]:
     out = []
     for block in data:
         cid = block["concept_id"]
-        results = [sync_item(cid, g) for g in block.get("generated_results", [])]
+        results = [sync_item(cid, g, mode=mode) for g in block.get("generated_results", [])]
         new_block = dict(block)
         new_block["generated_results"] = results
         out.append(new_block)
@@ -333,21 +377,42 @@ def audit_l3(data: list[dict]) -> dict[str, dict]:
     return stats
 
 
+def audit_truncation(data: list[dict]) -> dict[str, int]:
+    bad = 0
+    total = 0
+    for block in data:
+        for g in block.get("generated_results", []):
+            total += 1
+            t = (g.get("pred") or [""])[0]
+            if len(t) > 200 and t.rstrip()[-1] not in '.!?"\'」』）]':
+                bad += 1
+    return {"truncated": bad, "total": total}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--in", dest="inp", default="绝地邮兵_result.json")
     parser.add_argument("--out", default="绝地邮兵_result.json")
+    parser.add_argument(
+        "--mode",
+        choices=["full", "official", "minimal"],
+        default="full",
+        help="full=legacy; official=disclaimer+L3+sentence fix; minimal=sentence fix only",
+    )
     args = parser.parse_args()
 
     data = read_json(args.inp)
-    processed = postprocess_submission(data)
+    processed = postprocess_submission(data, mode=args.mode)
     write_json(args.out, processed)
 
-    stats = audit_l3(processed)
-    print(f"Wrote {args.out}")
-    print("L3 constraint hits:")
-    for cid, s in sorted(stats.items()):
-        print(f"  {cid}: {s['hits']}/{s['total']}")
+    stats = audit_l3(processed) if args.mode != "minimal" else {}
+    trunc = audit_truncation(processed)
+    print(f"Wrote {args.out} (mode={args.mode})")
+    print(f"Truncation: {trunc['truncated']}/{trunc['total']} likely incomplete endings")
+    if stats:
+        print("L3 constraint hits:")
+        for cid, s in sorted(stats.items()):
+            print(f"  {cid}: {s['hits']}/{s['total']}")
 
 
 if __name__ == "__main__":
