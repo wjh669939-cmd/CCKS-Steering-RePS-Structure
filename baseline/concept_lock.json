@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "updated": "2026-06-30",
+  "official_score": 0.6714,
+  "submission": "baseline/submission.json",
+  "audit_file": "runs/baseline_concept_audit.json",
+  "policy": "LOCKED / PROVEN / PATCH_FORBIDDEN 禁止出现在实验 merge 中。仅 STUBBORN 队列可做 BA-BoN 等专项实验。",
+
+  "proven_optimized": [
+    {
+      "concept_id": "L2_2",
+      "note": "Phase F 重训 L18 m=3.5；官方 +0.1131；0.6714 核心涨分点",
+      "layer": 18,
+      "mult": 3.5,
+      "vector": "retrain_pilot/L2_2/layer_18"
+    }
+  ],
+
+  "locked_good": [
+    { "concept_id": "L1_4", "layer": 16, "mult": 3.0, "proxy_hm": 1.2, "proxy_cs": 0.6, "note": "基线稳定；L1 重训未官方验证" },
+    { "concept_id": "L1_5", "layer": 20, "mult": 3.0, "proxy_hm": 1.44, "proxy_cs": 1.0, "note": "proxy 较好" },
+    { "concept_id": "L1_6", "layer": 16, "mult": 3.0, "proxy_hm": 1.44, "proxy_cs": 1.0, "note": "proxy 较好" },
+    { "concept_id": "L2_1", "layer": 16, "mult": 3.5, "proxy_hm": 0.72, "proxy_cs": 0.4, "note": "Phase C 已调 mult；默认锁" },
+    { "concept_id": "L2_3", "layer": 16, "mult": 2.0, "proxy_hm": 0.72, "proxy_cs": 0.4, "note": "Phase C 已调；勿用 retrain_pilot" },
+    { "concept_id": "L2_4", "layer": 18, "mult": 3.0, "proxy_hm": 0.72, "proxy_cs": 0.4, "note": "默认锁" },
+    { "concept_id": "L2_8", "layer": 16, "mult": 2.5, "proxy_hm": 0.54, "proxy_cs": 0.4, "note": "proxy 偏低但无 patch 失败记录；默认锁" },
+    { "concept_id": "L3_4", "layer": 16, "mult": 3.0, "proxy_hm": 1.44, "proxy_cs": 1.0, "l3_keyword": "5/5", "note": "keyword 满" },
+    { "concept_id": "L3_7", "layer": 18, "mult": 3.0, "proxy_hm": 1.44, "proxy_cs": 1.0, "l3_keyword": "5/5", "note": "keyword 满" },
+    { "concept_id": "L3_8", "layer": 18, "mult": 4.5, "proxy_hm": 1.44, "proxy_cs": 1.0, "l3_keyword": "5/5", "note": "keyword 满" }
+  ],
+
+  "patch_forbidden": [
+    { "concept_id": "L1_7", "official_patch_score": 0.55, "note": "L1 重训 m=3.5 官方大跌；基线答案够好" },
+    { "concept_id": "L1_8", "official_patch_score": 0.5183, "note": "BA-BoN 单 patch 4/5 改；本地 proxy 误判，官方大跌" },
+    { "concept_id": "L2_5", "official_patch_score": 0.5006, "note": "retrain_pilot 单 patch 证伪" },
+    { "concept_id": "L2_6", "official_patch_score": 0.5433, "note": "retrain_pilot 单/合并 patch 证伪" },
+    { "concept_id": "L2_7", "official_patch_score": 0.5433, "note": "retrain_pilot 单/合并 patch 证伪" }
+  ],
+
+  "stubborn_experiment_queue": {
+    "priority": ["L3_1", "L3_2", "L3_6", "L1_2", "L1_3"],
+    "concepts": [
+      { "concept_id": "L1_1", "type": "antagonistic", "proxy_hm": 0.0, "proxy_cs": 0.0, "note": "BA-BoN 本地 4/5 改；勿交（L1_8 证伪 proxy）" },
+      { "concept_id": "L1_2", "type": "personality_weak", "proxy_hm": 0.3, "proxy_cs": 0.2, "note": "spontaneous 对齐弱" },
+      { "concept_id": "L1_3", "type": "personality_weak", "proxy_hm": 0.3, "proxy_cs": 0.2, "note": "open-to-experience 对齐弱" },
+      { "concept_id": "L3_3", "type": "keyword", "proxy_hm": 0.0, "l3_keyword": "0/5", "target": "sonder", "note": "BA-BoN mult 0/5 改；需 CAA 重训" },
+      { "concept_id": "L3_5", "type": "keyword", "proxy_hm": 0.0, "l3_keyword": "0/5", "target": "variance is the point", "note": "BA-BoN mult 0/5 改；需 CAA 重训" },
+      { "concept_id": "L3_1", "type": "keyword_partial", "proxy_hm": 1.2, "l3_keyword": "3/5", "target": "??", "note": "可补 keyword" },
+      { "concept_id": "L3_2", "type": "keyword_partial", "proxy_hm": 1.6, "l3_keyword": "4/5", "target": "let's improvise", "note": "差 1 题" },
+      { "concept_id": "L3_6", "type": "keyword_partial", "proxy_hm": 0.9, "l3_keyword": "3/5", "target": "self-authored", "note": "可补 keyword" }
+    ]
+  },
+
+  "counts": {
+    "proven": 1,
+    "locked_good": 10,
+    "patch_forbidden": 5,
+    "stubborn": 8,
+    "total": 24
+  }
+}
