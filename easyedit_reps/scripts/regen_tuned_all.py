@@ -19,17 +19,28 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from steer.datasets.dataset_loader import DatasetLoader
 from steer.vector_appliers.vector_applier import BaseVectorApplier
 
-VECTOR_ROOT = ROOT / "outputs/vectors/ccks_baseline_reps"
+DEFAULT_VECTOR_ROOT = ROOT / "outputs/vectors/ccks_baseline_reps"
+DEFAULT_LAYER = 18
 L3_MULT = ROOT / "outputs/generation/l3_tuned/best_l3_multipliers.json"
 L12_MULT = ROOT / "outputs/generation/l12_tuned/best_l12_multipliers.json"
 ALL_CONCEPTS = [f"L1_{i}" for i in range(1, 9)] + [f"L2_{i}" for i in range(1, 9)] + [f"L3_{i}" for i in range(1, 9)]
 
 
-def build_cfg(multiplier: float, max_new_tokens: int, tag: str) -> OmegaConf:
+def build_cfg(
+    multiplier: float,
+    max_new_tokens: int,
+    tag: str,
+    layer: int = DEFAULT_LAYER,
+    vector_root: Path | None = None,
+    steer_from_end_position: bool = False,
+) -> OmegaConf:
+    vector_root = vector_root or DEFAULT_VECTOR_ROOT
     out_dir = ROOT / f"outputs/generation/regen_{tag}"
     return OmegaConf.create(
         {
-            "model_name_or_path": "/root/autodl-tmp/models/Qwen3-4B-Instruct-2507",
+            "model_name_or_path": os.environ.get(
+                "REPS_MODEL_PATH", "/root/autodl-tmp/models/Qwen3-4B-Instruct-2507"
+            ),
             "dtype": "bfloat16",
             "device": "cuda:0",
             "seed": 42,
@@ -45,16 +56,16 @@ def build_cfg(multiplier: float, max_new_tokens: int, tag: str) -> OmegaConf:
             "method": "reps",
             "dataset": "SteerEval/personality",
             "exp": "valid",
-            "layers": [18],
+            "layers": [layer],
             "multipliers": [multiplier],
             "apply_steer_hparam_paths": [
                 str(EASYEDIT_ROOT / "hparams/Steer/ccks2026_hparams/qwen3-4b-it/reps/apply_reps.yaml")
             ],
-            "steer_vector_load_dir": [str(VECTOR_ROOT)],
+            "steer_vector_load_dir": [str(vector_root)],
             "generation_output_dir": str(out_dir),
             "generation_data_size": None,
             "num_responses": 1,
-            "steer_from_end_position": False,
+            "steer_from_end_position": steer_from_end_position,
             "generation_params": {
                 "max_new_tokens": max_new_tokens,
                 "temperature": 0,
@@ -99,13 +110,34 @@ def train_meta(train_path: Path) -> dict[str, dict]:
     return meta
 
 
-def generate_concept(concept_id: str, multiplier: float, max_new_tokens: int, tag: str, eval_data) -> list[dict]:
-    applier = BaseVectorApplier(build_cfg(multiplier, max_new_tokens, tag))
+def generate_concept(
+    concept_id: str,
+    multiplier: float,
+    max_new_tokens: int,
+    tag: str,
+    eval_data,
+    layer: int = DEFAULT_LAYER,
+    vector_root: Path | None = None,
+    steer_from_end_position: bool = False,
+    intervention_method: str = "vector",
+) -> list[dict]:
+    vector_root = vector_root or DEFAULT_VECTOR_ROOT
+    applier = BaseVectorApplier(
+        build_cfg(
+            multiplier,
+            max_new_tokens,
+            tag,
+            layer,
+            vector_root,
+            steer_from_end_position=steer_from_end_position,
+        )
+    )
     applier._load_model()
     applier.hparams_dict["reps"].steer_vector_load_dir = str(
-        VECTOR_ROOT / f"steer_eval_concept_{concept_id}" / "reps_vector"
+        vector_root / f"steer_eval_concept_{concept_id}" / f"reps_{intervention_method}"
     )
     applier.hparams_dict["reps"].multipliers = [multiplier]
+    applier.hparams_dict["reps"].intervention_method = intervention_method
     applier.apply_vectors()
     generated = applier.generate({"steer_eval_eval": eval_data}, save_results=False)
     applier.model.reset_all()
@@ -161,8 +193,16 @@ def main() -> None:
         default=None,
     )
     parser.add_argument("--train", type=Path, default=PROJECT_ROOT / "train.json")
+    parser.add_argument("--layer", type=int, default=DEFAULT_LAYER)
+    parser.add_argument(
+        "--vector-root",
+        type=Path,
+        default=None,
+        help="Steering vector root dir (default: outputs/vectors/ccks_baseline_reps)",
+    )
     args = parser.parse_args()
 
+    vector_root = args.vector_root or DEFAULT_VECTOR_ROOT
     tag = args.tag or str(args.max_new_tokens)
     if args.out_raw is None:
         args.out_raw = ROOT / f"outputs/generation/regen_{tag}/all_generation_results_valid.json"
@@ -177,8 +217,19 @@ def main() -> None:
     submission: list[dict] = []
     for cid in ALL_CONCEPTS:
         mult = multipliers[cid]
-        print(f"[regen] {cid} multiplier={mult} max_new_tokens={args.max_new_tokens} tag={tag}")
-        generated = generate_concept(cid, mult, args.max_new_tokens, tag, eval_datasets[cid])
+        print(
+            f"[regen] {cid} layer={args.layer} multiplier={mult} "
+            f"max_new_tokens={args.max_new_tokens} tag={tag}"
+        )
+        generated = generate_concept(
+            cid,
+            mult,
+            args.max_new_tokens,
+            tag,
+            eval_datasets[cid],
+            layer=args.layer,
+            vector_root=vector_root,
+        )
         submission.append(to_submission_block(cid, generated, meta))
 
     args.out_raw.parent.mkdir(parents=True, exist_ok=True)

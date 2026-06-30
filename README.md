@@ -1,7 +1,7 @@
 # CCKS2026 SteerEval — RePS Pipeline
 
 > 基于 EasyEdit2 官方 **RePS** 方法的 CCKS2026 大模型行为调控（Steering）方案。  
-> **当前 baseline**：512 token raw 生成，天池官方分 **0.3817**。
+> **当前最优**：phase_f · 天池官方分 **0.6714**（仅 L2_2 重训，多 L2 合并 0.6583 已回滚）。
 
 **仓库**：https://github.com/wjh669939-cmd/CCKS-Steering-RePS-Structure
 
@@ -10,37 +10,39 @@
 ## 快速开始
 
 ```bash
-git clone https://github.com/wjh669939-cmd/CCKS-Steering-RePS-Structure.git
-cd CCKS-Steering-RePS-Structure
+cd easyedit_reps && source env.sh
 
-# 1. 安装环境（见 docs/REPRODUCTION_GUIDE.md 第四节）
-cd easyedit_reps && python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-lite.txt transformers accelerate
-cd EasyEdit && pip install -e . && cd ..
-
-# 2. 修改 config 中的 model_name_or_path 为你的模型路径
-
-# 3. 训练向量 → 扫参 → 重生成（完整流程见复现指南）
-source env.sh
-bash scripts/run_reps_vectors.sh      # Step 1: 训练向量（~2h）
-bash scripts/run_l3_sweep.sh          # Step 3: L3 扫参
-bash scripts/run_l12_sweep.sh         # Step 4: L1/L2 扫参
-
-# 4. 从 baseline multiplier 一键重生成（跳过扫参时使用）
+# 从当前 baseline 重生成（per-concept layer + multiplier）
 bash ../scripts/regen_from_baseline.sh 512
+# → 绝地邮兵_result_regen_baseline_512.json
+
+# 完整 Phase C 复现（需 GPU，~12min 扫参部分）
+bash ../scripts/run_phase_c_l12_optimize.sh
 ```
+
+首次搭建环境见 [`docs/reproduction/baseline_0.6714.md`](docs/reproduction/baseline_0.6714.md)（**0.6714 双版本复现：Shell + JupyterLab**）。  
+复现文档目录：[`docs/reproduction/`](docs/reproduction/)。
 
 ---
 
 ## 目录结构
 
-| 路径 | 说明 |
-|------|------|
-| `easyedit_reps/` | RePS 完整 pipeline（EasyEdit + 脚本 + 配置） |
-| `baseline/` | 冻结 baseline v1（multiplier + 参考提交） |
-| `scripts/` | 重生成、后处理、本地评测 |
-| `train.json` / `valid.json` | 赛方数据 |
-| `docs/REPRODUCTION_GUIDE.md` | **详细复现指南（推荐阅读）** |
+```text
+CCKS2026-Steering/
+├── 绝地邮兵_result.json      # 当前提交（0.6714）
+├── train.json / valid.json    # 赛方数据
+├── baseline/                  # 冻结配置（layers + mult + submission）
+├── easyedit_reps/             # RePS pipeline + 向量
+│   └── outputs/vectors/
+│       ├── per_layer/         # ★ 当前 regen 主向量库
+│       └── ccks_baseline_reps/  # layer 18 回退向量
+├── scripts/                   # 活跃工具脚本
+├── docs/
+│   └── reproduction/          # ★ 复现指南（0.6714 / 0.3817 + Notebook）
+├── runs/                      # 活跃实验日志（phase_a/c）
+└── archive/                   # 历史提交、runs、向量（可删，不影响复现）
+    └── submissions/           # 按阶段归档的提交 JSON
+```
 
 ---
 
@@ -48,29 +50,29 @@ bash ../scripts/regen_from_baseline.sh 512
 
 | 版本 | 官方分 | 说明 |
 |------|--------|------|
-| 256 token + full 后处理 | 0.2583 | 已弃用 |
-| 512 token + official 后处理 | 0.355 | 已弃用 |
-| **512 token raw（baseline v1）** | **0.3817** | 当前最优 |
-| 768 token raw | 待验证 | Round 1 实验 |
+| reps_raw_v1 | 0.3817 | 512 token · layer 18 统一 |
+| best_merge | 0.4517 | L3 mult + round2 选层 |
+| **phase_f（当前）** | **0.6714** | L2_2 重训向量 @ L18 m=3.5 |
+| phase_c | 0.5583 | L2 mult↑ + L1 换层 |
 
-**关键结论**：无后处理 raw 生成 > 任何后处理；优化应直接提升生成质量。
+配置：`baseline/layers.json` + `baseline/multipliers.json`
 
 ---
 
 ## 文档
 
-- [**复现实验完整指南**](docs/REPRODUCTION_GUIDE.md) — 环境、流程、结果、优化方向
-- [实验日志](docs/EXPERIMENT_LOG.md) — 两阶段实验记录
-- [官方分优化](docs/OFFICIAL_SCORE_OPTIMIZATION.md) — A/B 实验结论
-- [快速上手](docs/REPS_SETUP.md)
+- [**提交索引**](docs/SUBMISSIONS.md) — 各阶段提交文件、官方分与可否再交
+- [**复现指南目录**](docs/reproduction/) — **队友首选**（0.6714 Shell + JupyterLab）
+- [**实验日志**](docs/EXPERIMENT_LOG.md) — 完整实验记录（v7.0）
+- [Baseline 说明](baseline/README.md)
+- [归档说明](archive/README.md)
 
 ---
 
 ## 模型与数据
 
-- **模型**：[Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507)（需自行下载）
-- **数据**：`train.json`（1680 条）、`valid.json`（120 条）
-- **不在 Git 中**：模型权重、RePS 向量（`.pt`）、虚拟环境
+- **模型**：Qwen3-4B-Instruct-2507（本地路径见 `easyedit_reps/env.sh`）
+- **不在 Git 中**：模型权重、`.venv`、大部分向量与 archive
 
 ---
 

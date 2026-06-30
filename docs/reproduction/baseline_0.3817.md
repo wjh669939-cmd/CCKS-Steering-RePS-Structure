@@ -1,4 +1,11 @@
-# CCKS2026 RePS 实验复现指南
+# CCKS2026 RePS 实验复现指南（历史 · baseline 0.3817）
+
+> ⚠️ **当前最优 baseline 为 0.6714**，请优先阅读：  
+> **[`baseline_0.6714.md`](baseline_0.6714.md)**（含 Shell 工作区版 + JupyterLab 版）
+
+---
+
+# CCKS2026 RePS 实验复现指南（0.3817 历史版）
 
 > **仓库**：[wjh669939-cmd/CCKS-Steering-RePS-Structure](https://github.com/wjh669939-cmd/CCKS-Steering-RePS-Structure)  
 > **方法**：EasyEdit2 官方 RePS（Representation Engineering Steering）  
@@ -53,7 +60,7 @@ CCKS-Steering-RePS-Structure/
 │   ├── config.py                        # JSON 读写（后处理脚本依赖）
 │   └── data.py
 ├── docs/
-│   ├── REPRODUCTION_GUIDE.md            # 本文档
+│   └── reproduction/                    # 复现指南（0.6714 / 0.3817 + Notebook）
 │   ├── EXPERIMENT_LOG.md                # 完整实验日志
 │   ├── OFFICIAL_SCORE_OPTIMIZATION.md   # 官方分优化记录
 │   └── REPS_SETUP.md                    # 快速上手指南
@@ -327,7 +334,7 @@ python scripts/local_eval.py \
 | 旧版 | 256 | full（hint+改写+L3） | 0.2583 |
 | B 版 | 512 | official 轻量 | 0.355 |
 | **baseline v1（A 版）** | **512** | **无** | **0.3817** |
-| Round 1 | 768 | 无 | 待验证 |
+| Round 1 | 768 | 无 | **0.2967** | ❌ 低于 baseline |
 
 ### 7.2 Baseline v1 配置
 
@@ -349,8 +356,11 @@ python scripts/local_eval.py \
 
 | 指标 | baseline 512 | 768 实验 |
 |------|-------------|---------|
-| 疑似截断（>200字无句末标点） | 30/120 | 26/120 |
+| 天池官方分 | **0.3817** | 0.2967 |
+| 疑似截断 | 30/120 | 26/120 |
 | 平均回答长度 | ~1066 字 | ~1360 字 |
+
+**结论**：截断略减，但官方分 **下降 22%**。LLM judge 更 penalize 冗长、发散；512 token 是当前最优长度，**不再尝试 768/1024**。
 
 ---
 
@@ -400,13 +410,13 @@ python scripts/local_eval.py \
 
 按 **投入产出比** 排序，均基于「raw 生成、无后处理、天池反馈驱动」原则。
 
-### 10.1 提高生成长度（优先级：高）
+### 10.1 ~~提高生成长度~~（已证伪，勿再试）
 
-- **768 / 1024 token**：baseline 512 仍有 30/120 疑似截断；768 降至 26/120
-- 命令：`bash scripts/regen_from_baseline.sh 1024`
-- 风险：回答过长可能略损简洁度，需天池验证
+- 768 token 天池 **0.2967** < 512 token **0.3817**
+- 本地截断减少（30→26）但官方分大幅下降，说明 judge 更重简洁与人格对齐
+- **512 token 为当前 sweet spot**，勿试 1024
 
-### 10.2 薄弱 concept 定向调 multiplier（优先级：高）
+### 10.2 薄弱 concept 定向调 multiplier（优先级：最高）
 
 本地与官方 judge 均可能偏低的 concept：
 

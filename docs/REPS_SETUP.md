@@ -1,8 +1,8 @@
 # CCKS2026 RePS Pipeline — 快速上手指南
 
 > **仓库**：[wjh669939-cmd/CCKS-Steering-RePS-Structure](https://github.com/wjh669939-cmd/CCKS-Steering-RePS-Structure)  
-> **详细复现**：见 [`docs/REPRODUCTION_GUIDE.md`](REPRODUCTION_GUIDE.md)  
-> **方法**：官方 EasyEdit2 RePS | **模型**：Qwen3-4B-Instruct-2507
+> **详细复现**：见 [`docs/reproduction/baseline_0.6714.md`](reproduction/baseline_0.6714.md)  
+> **方法**：官方 EasyEdit2 RePS | **模型**：Qwen3-4B-Instruct-2507 | **官方分**：**0.6714**
 
 ---
 

@@ -526,7 +526,7 @@ Round 3-B（L1 mult，最后微调）
 | L3 keyword audit | `scripts/audit_l3_keywords.py` |
 | Official proxy audit | `scripts/audit_official_proxy.py` |
 | merge 工具 | `scripts/merge_submission.py` |
-| 复现指南 | [REPRODUCTION_GUIDE.md](REPRODUCTION_GUIDE.md) |
+| 复现指南 | [reproduction/](reproduction/) · [baseline_0.6714.md](reproduction/baseline_0.6714.md) |
 | 官方分优化记录 | [OFFICIAL_SCORE_OPTIMIZATION.md](OFFICIAL_SCORE_OPTIMIZATION.md) |
 | RePS 环境搭建 | [REPS_SETUP.md](REPS_SETUP.md) |
 | 实验计划 | [NEXT_EXPERIMENTS.md](NEXT_EXPERIMENTS.md) |

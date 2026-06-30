@@ -28,7 +28,10 @@ bash scripts/rollback_to_phase_f_l2_2.sh
 
 ## 复现当前 baseline 生成
 
+详见 [`docs/reproduction/baseline_0.6714.md`](../docs/reproduction/baseline_0.6714.md)。
+
 ```bash
+export REPS_MODEL_PATH=/你的路径/Qwen3-4B-Instruct-2507
 bash scripts/regen_from_baseline.sh 512
 # 输出: 绝地邮兵_result_regen_baseline_512.json
 ```
