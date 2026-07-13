@@ -1,0 +1,24 @@
+{
+  "name": "reps_raw_v1",
+  "description": "RePS 分档扫参 + 512 token raw 生成，无后处理；天池官方分 0.3817",
+  "frozen_at": "2026-06-22",
+  "official_score": 0.3817,
+  "model": "${REPS_MODEL_PATH}",
+  "method": "reps",
+  "layer": 18,
+  "generation": {
+    "max_new_tokens": 512,
+    "temperature": 0,
+    "do_sample": false,
+    "system_prompt": "",
+    "use_chat_template": true,
+    "seed": 42
+  },
+  "postprocess": "none",
+  "multipliers_file": "baseline/reps_raw_v1/multipliers.json",
+  "layers_file": "baseline/reps_raw_v1/layers.json",
+  "submission_file": "baseline/reps_raw_v1/submission.json",
+  "vectors_dir": "easyedit_reps/outputs/vectors/ccks_baseline_reps",
+  "regen_command": "bash scripts/regen_from_baseline_0.3817.sh 512",
+  "full_pipeline": "bash scripts/run_baseline_0_3817.sh all"
+}

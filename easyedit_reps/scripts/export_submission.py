@@ -40,15 +40,12 @@ def convert(raw: list[dict]) -> list[dict]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--in",
-        dest="inp",
-        default="/root/CCKS2026-Steering/easyedit_reps/outputs/generation/ccks_baseline_reps/reps/all_generation_results_valid.json",
-    )
-    parser.add_argument(
-        "--out",
-        default="/root/CCKS2026-Steering/绝地邮兵_result.json",
-    )
+    root = Path(__file__).resolve().parents[1]
+    project = root.parent
+    default_in = root / "outputs/generation/ccks_baseline_reps/reps/all_generation_results_valid.json"
+    default_out = project / "绝地邮兵_result.json"
+    parser.add_argument("--in", dest="inp", default=str(default_in))
+    parser.add_argument("--out", default=str(default_out))
     args = parser.parse_args()
     raw = json.loads(Path(args.inp).read_text(encoding="utf-8"))
     submission = convert(raw)

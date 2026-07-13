@@ -44,13 +44,19 @@
 ```text
 CCKS-Steering-RePS-Structure/
 ├── train.json / valid.json              # 赛方数据（需自行下载或随仓库提供）
-├── baseline/                            # 冻结 baseline v1（官方分 0.3817）
-│   ├── baseline_manifest.json           # 配置快照
-│   ├── multipliers.json                 # 24 concept 最优 multiplier
-│   ├── submission.json                  # 参考提交（512 token raw）
-│   └── README.md
+├── baseline/                            # 冻结 baseline
+│   ├── reps_raw_v1/                     # ★ 0.3817 冻结包（官方分 0.3817）
+│   │   ├── baseline_manifest.json
+│   │   ├── multipliers.json             # 24 concept 最优 multiplier
+│   │   ├── layers.json                  # 全部为 layer 18
+│   │   ├── submission.json              # 参考提交（512 token raw）
+│   │   └── README.md
+│   ├── submission.json                  # 当前 anchor（0.96，非 0.3817）
+│   └── archive/                         # 历史 baseline 归档
 ├── scripts/
-│   ├── regen_from_baseline.sh           # ★ 从 baseline 一键重生成
+│   ├── regen_from_baseline_0.3817.sh    # ★ 0.3817 一键重生成
+│   ├── run_baseline_0_3817.sh           # ★ 0.3817 完整流程编排
+│   ├── regen_from_baseline.sh           # 0.6714+ per-concept 重生成
 │   ├── postprocess_submission.py        # 后处理（默认不建议用于天池提交）
 │   ├── finalize_submission.sh
 │   ├── finalize_official_submission.sh
@@ -258,22 +264,30 @@ bash scripts/run_l12_sweep.sh
 
 ### Step 5：从 baseline 重生成提交（★ 推荐路径）
 
-仓库已冻结 baseline multiplier（`baseline/multipliers.json`），无需重跑扫参即可复现最优配置：
+仓库已冻结 0.3817 配置（`baseline/reps_raw_v1/`），无需重跑扫参即可复现：
 
 ```bash
-# 复现 baseline v1（512 token，官方分 0.3817）
-bash scripts/regen_from_baseline.sh 512
+export REPS_MODEL_PATH=/path/to/Qwen3-4B-Instruct-2507
 
-# Round 1 实验：768 token
-bash scripts/regen_from_baseline.sh 768
+# 复现 0.3817（512 token，官方分 0.3817）
+bash scripts/regen_from_baseline_0.3817.sh 512
+
+# 完整从零流程（Step1 向量 + L3/L12 扫参 + 重生成）
+bash scripts/run_baseline_0_3817.sh all
 ```
 
 输出文件：
 
 | 命令 | 提交文件 |
 |------|---------|
-| `regen_from_baseline.sh 512` | `绝地邮兵_result_regen_512.json` |
-| `regen_from_baseline.sh 768` | `绝地邮兵_result_regen_768.json` |
+| `regen_from_baseline_0.3817.sh 512` | `绝地邮兵_result_regen_baseline_0.3817_512.json` |
+
+验收：
+
+```bash
+python3 docs/reproduction/scripts/validate_submission.py \
+  baseline/reps_raw_v1/submission.json
+```
 
 **提交策略**：直接提交上述 JSON，**不做后处理**。
 
@@ -338,7 +352,7 @@ python scripts/local_eval.py \
 
 ### 7.2 Baseline v1 配置
 
-见 `baseline/baseline_manifest.json`，核心参数：
+见 `baseline/reps_raw_v1/baseline_manifest.json`，核心参数：
 
 ```json
 {
@@ -350,7 +364,7 @@ python scripts/local_eval.py \
 }
 ```
 
-完整 multiplier 见 `baseline/multipliers.json`。
+完整 multiplier 见 `baseline/reps_raw_v1/multipliers.json`。
 
 ### 7.3 768 token 初步对比（本地）
 
@@ -395,14 +409,12 @@ python scripts/local_eval.py \
 **Q: 后处理要不要用？**  
 **不建议。** 天池 A/B 已证明 raw 生成（0.3817）> official 后处理（0.355）。
 
-**Q: `regen_from_baseline.sh` 报 multiplier 路径错误？**  
-确保使用 `PROJECT_ROOT` 而非 `ROOT` 传路径（脚本已修复）；或手动指定：
+**Q: `regen_from_baseline_0.3817.sh` 报 vector 目录不存在？**  
+先跑 `bash scripts/run_baseline_0_3817.sh step1`，或确认向量在 `easyedit_reps/outputs/vectors/ccks_baseline_reps/`。
 
-```bash
-.venv/bin/python scripts/regen_tuned_all.py \
-  --max-new-tokens 768 \
-  --multipliers /path/to/baseline/multipliers.json
-```
+**Q: 与 `regen_from_baseline.sh` 混淆？**  
+- `regen_from_baseline_0.3817.sh` → **0.3817**（layer 18 统一，`baseline/reps_raw_v1/`）  
+- `regen_from_baseline.sh` → **0.6714+**（per-concept layer，`baseline/layers.json`）
 
 ---
 
@@ -469,7 +481,8 @@ python scripts/local_eval.py \
 | `docs/EXPERIMENT_LOG.md` | 两阶段实验全记录（CAA 探索 → RePS） |
 | `docs/OFFICIAL_SCORE_OPTIMIZATION.md` | 官方分优化与 A/B 结论 |
 | `docs/REPS_SETUP.md` | 快速上手指南 |
-| `baseline/README.md` | baseline v1 说明 |
+| `baseline/README.md` | 当前 anchor 说明（0.96） |
+| `baseline/reps_raw_v1/README.md` | **0.3817 冻结包说明** |
 
 ---
 
